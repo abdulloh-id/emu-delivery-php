@@ -1,0 +1,15 @@
+# Composer dependencies
+/vendor/
+
+# Local sensitive configuration & environment files
+/config.php
+.env
+
+# IDE & OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Testing & cache
+/.phpunit.cache/
