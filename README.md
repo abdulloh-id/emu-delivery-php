@@ -1,32 +1,90 @@
+Yes, the License section is standard for open-source READMEs. We can make the document significantly shorter and easier to copy by referencing `database/schema.sql` directly rather than embedding raw SQL queries, and consolidating the code examples.
+
+Here is the trimmed, concise `README.md` in a single copyable block:
+
+```markdown
 # EMU Delivery PHP SDK
 
-A modern, PSR-4 compliant, framework-agnostic PHP SDK for integrating with the EMU Express Delivery API in Uzbekistan.
+A framework-agnostic PHP SDK for integrating with the EMU Express Delivery API in Uzbekistan.
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-8892BF.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Features
-
-- **Framework Agnostic**: Works seamlessly with Laravel, Symfony, Yii, or plain PHP applications.
-- **Decoupled Architecture**: Repository pattern (`EmuStorageInterface`) allows custom database adapters (PDO, Eloquent, Doctrine).
-- **Secure**: Parameterized SQL queries via PDO prevent SQL injection vulnerabilities.
-- **Transaction Safe**: Uses transaction-bound table refreshes (`DELETE FROM`) to protect data integrity.
-- **Type Safe**: Supports modern PHP 8.1+ features, strict types, and robust exception handling.
-
----
-
 ## Requirements
 
-- PHP `8.1` or higher
-- `ext-curl`
-- `ext-pdo`
-- `ext-simplexml`
-
----
+- PHP 8.1+
+- Extensions: `ext-curl`, `ext-pdo`, `ext-simplexml`
 
 ## Installation
 
-Install the package via Composer:
-
 ```bash
 composer require abdulloh-id/emu-delivery-php
+
+```
+
+Import `database/schema.sql` into your MySQL/MariaDB database if using the default PDO repository.
+
+## Configuration
+
+Configure credentials once at application boot:
+
+```php
+use AbdullohId\EmuDelivery\EmuClient;
+
+EmuClient::configure(
+    login: 'your_login',
+    password: 'your_password',
+    extra: 123
+);
+
+```
+
+## Quick Usage
+
+### Fetching & Syncing Data
+
+```php
+use AbdullohId\EmuDelivery\EmuSync;
+use AbdullohId\EmuDelivery\Repositories\PdoEmuRepository;
+
+$pdo = new PDO('mysql:host=127.0.0.1;dbname=your_db;charset=utf8mb4', 'root', '');
+$sync = new EmuSync(new PdoEmuRepository($pdo));
+
+// Sync regions & towns
+$towns = EmuSync::getTownList();
+$sync->updateRegionList($towns);
+$sync->updateTownList($towns);
+
+// Sync pickup points (PVZ)
+$pvzList = EmuSync::getPvzList();
+$sync->updatePvzList($pvzList);
+
+```
+
+## Running Sync via CLI
+
+Copy `.env.example` to `.env` in your root folder, then execute:
+
+```bash
+php examples/run_emu_sync.php
+
+```
+
+Or pass database flags directly:
+
+```bash
+php examples/run_emu_sync.php --host=127.0.0.1 --dbname=my_db --user=root --pass=secret
+
+```
+
+## Custom Storage Adapters
+
+Implement `AbdullohId\EmuDelivery\Contracts\EmuStorageInterface` to build custom ORM persistence layers (e.g., Laravel Eloquent, Doctrine).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
+
+```
+
+```
