@@ -2,7 +2,6 @@
 /vendor/
 
 # Local sensitive configuration & environment files
-/config.php
 .env
 
 # IDE & OS files

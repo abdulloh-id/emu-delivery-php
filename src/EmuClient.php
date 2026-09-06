@@ -2,36 +2,50 @@
 
 namespace AbdullohId\EmuDelivery;
 
+use AbdullohId\EmuDelivery\Exceptions\EmuException;
+use AbdullohId\EmuDelivery\Exceptions\EmuRequestException;
+use InvalidArgumentException;
 use SimpleXMLElement;
 
 class EmuClient
 {
-    private static $api_url = "https://home.courierexe.ru/api/";
+    private static string $api_url = "https://home.courierexe.ru/api/";
 
     private static ?string $login = null;
     private static ?string $password = null;
     private static ?int $extra = null;
 
     /**
-     * Loads config once and verifies credentials.
+     * Dynamically configure EMU credentials.
+     */
+    public static function configure(string $login, string $password, int $extra, ?string $apiUrl = null): void
+    {
+        self::$login = $login;
+        self::$password = $password;
+        self::$extra = $extra;
+
+        if ($apiUrl !== null) {
+            self::$api_url = $apiUrl;
+        }
+    }
+
+    /**
+     * Checks if API credentials have been configured.
      */
     public static function loadCredentials(): bool
     {
-        if (self::$login && self::$password && self::$extra) {
-            return true;
-        }
-
-        $config = require __DIR__ . "/../config.php"; // Adjust path as needed
-        self::$login    = $config['emu']['login'] ?? null;
-        self::$password = $config['emu']['password'] ?? null;
-        self::$extra    = $config['emu']['extra'] ?? null;
-
-        return (bool)(self::$login && self::$password && self::$extra);
+        return (bool) (self::$login && self::$password && self::$extra);
     }
 
+    /**
+     * @throws EmuException
+     */
     public static function getAuthParams(): array
     {
-        self::loadCredentials();
+        if (!self::loadCredentials()) {
+            throw new EmuException("EMU credentials are not configured. Call EmuClient::configure() or ensure config.php exists.");
+        }
+
         return [
             'login' => self::$login,
             'pass'  => self::$password,
@@ -40,183 +54,198 @@ class EmuClient
     }
 
     /**
-     * Common cURL communication helper.
+     * Common cURL communication helper with SSL and timeout hardening.
+     *
+     * @throws EmuRequestException
      */
-    public static function sendRequest(string $xml_string, string $content_type = 'application/xml')
+    public static function sendRequest(string $xmlString, string $contentType = 'application/xml'): string
     {
+        if (!self::loadCredentials()) {
+            throw new EmuRequestException("EMU API credentials are not configured.");
+        }
+
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, self::$api_url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: {$content_type}; charset=utf-8"]);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $xml_string);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => self::$api_url,
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HTTPHEADER     => ["Content-Type: {$contentType}; charset=utf-8"],
+            CURLOPT_POSTFIELDS     => $xmlString,
+        ]);
 
         $response = curl_exec($ch);
 
         if (curl_errno($ch)) {
-            $error = 'Curl error: ' . curl_error($ch);
+            $error = curl_error($ch);
             curl_close($ch);
-            return $error;
+            throw new EmuRequestException("cURL connection error: {$error}");
         }
 
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($http_code != 200 || !$response) {
-            return "Error: API request failed with HTTP code $http_code.";
+        if ($httpCode !== 200 || !$response) {
+            throw new EmuRequestException("EMU API request failed with HTTP status code {$httpCode}.");
         }
 
-        return $response;
+        return (string)$response;
     }
 
-    public static function calculateCost(array $delivery_params)
+    /**
+     * @throws EmuException
+     * @throws EmuRequestException
+     * @throws InvalidArgumentException
+     */
+    public static function calculateCost(array $deliveryParams): float
     {
-        if (!self::loadCredentials()) {
-            return "Error: EMU credentials not found in configuration.";
+        if (empty($deliveryParams['townto']) || empty($deliveryParams['townfrom'])) {
+            throw new InvalidArgumentException("Origin and destination cities are required.");
+        }
+        if (!isset($deliveryParams['weight']) || (float)$deliveryParams['weight'] <= 0) {
+            throw new InvalidArgumentException("Valid positive weight is required.");
         }
 
-        // Validation
-        if (empty($delivery_params['townto']) || empty($delivery_params['townfrom'])) {
-            return "Error: Origin and destination cities are required.";
-        }
-        if (!isset($delivery_params['weight']) || $delivery_params['weight'] <= 0) {
-            return "Error: Valid weight is required.";
-        }
+        $authParams = self::getAuthParams();
 
-        // Build XML
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><calculator/>');
         $auth = $xml->addChild('auth');
-        $auth->addAttribute('login', self::$login);
-        $auth->addAttribute('pass', self::$password);
-        $auth->addAttribute('extra', self::$extra);
+        $auth->addAttribute('login', $authParams['login']);
+        $auth->addAttribute('pass', $authParams['pass']);
+        $auth->addAttribute('extra', (string)$authParams['extra']);
 
         $order = $xml->addChild('order');
-        $order->addChild('pricetype', $delivery_params['pricetype'] ?? 'CUSTOMER');
+        $order->addChild('pricetype', $deliveryParams['pricetype'] ?? 'CUSTOMER');
 
         $sender = $order->addChild('sender');
-        $sender_town = $sender->addChild('town', htmlspecialchars($delivery_params['townfrom_name'] ?? ''));
-        $sender_town->addAttribute('code', $delivery_params['townfrom']);
+        $senderTown = $sender->addChild('town', htmlspecialchars($deliveryParams['townfrom_name'] ?? ''));
+        $senderTown->addAttribute('code', (string)$deliveryParams['townfrom']);
 
         $receiver = $order->addChild('receiver');
-        $receiver_town = $receiver->addChild('town', htmlspecialchars($delivery_params['townto_name'] ?? ''));
-        $receiver_town->addAttribute('code', $delivery_params['townto']);
+        $receiverTown = $receiver->addChild('town', htmlspecialchars($deliveryParams['townto_name'] ?? ''));
+        $receiverTown->addAttribute('code', (string)$deliveryParams['townto']);
 
-        $order->addChild('weight', (float)$delivery_params['weight']);
+        $order->addChild('weight', (string)(float)$deliveryParams['weight']);
 
-        // Execute Request
         $response = self::sendRequest($xml->asXML());
-        if (strpos($response, 'Error:') === 0 || strpos($response, 'Curl error') === 0) {
-            return $response;
+        $responseXml = simplexml_load_string($response);
+
+        if (!$responseXml) {
+            throw new EmuRequestException("Invalid XML response received from EMU API.");
         }
 
-        $response_xml = simplexml_load_string($response);
-        if (!$response_xml) return "Error: Invalid XML response.";
-
-        // API Level Error handling
-        if (isset($response_xml->attributes()['error']) && (int)$response_xml->attributes()['error']) {
-            return "Error: " . ($response_xml->attributes()['errormsg'] ?? 'Unknown API error');
+        if (isset($responseXml->attributes()['error']) && (int)$responseXml->attributes()['error']) {
+            $errorMsg = (string)($responseXml->attributes()['errormsg'] ?? 'Unknown API error');
+            throw new EmuRequestException("EMU API Error: {$errorMsg}");
         }
 
-        // Logic to pick service
-        $show_price = $delivery_params['show_price'] ?? 'to_home';
-        $target_service = ($show_price === 'to_office') ? 'ДО ОФИСА' : 'НА ДОМ';
+        $showPrice = $deliveryParams['show_price'] ?? 'to_home';
+        $targetService = ($showPrice === 'to_office') ? 'ДО ОФИСА' : 'НА ДОМ';
 
-        foreach ($response_xml->calc as $calc) {
-            if ((string)$calc->service->attributes()['name'] === $target_service) {
+        foreach ($responseXml->calc as $calc) {
+            if ((string)$calc->service->attributes()['name'] === $targetService) {
                 return (float)$calc->attributes()['price'];
             }
         }
 
-        return "Error: Service '$target_service' not found.";
+        throw new EmuException("Service '$targetService' not found in calculation response.");
     }
 
-
     /**
-     * Calculates delivery fee from seller's address to an EMU PVZ
+     * Calculates delivery fee from seller's address to an EMU PVZ.
+     *
+     * @throws EmuException
+     * @throws EmuRequestException
+     * @throws InvalidArgumentException
      */
-    public static function calculateCostPvz(array $params)
+    public static function calculateCostPvz(array $params): float
     {
-        if (!self::loadCredentials()) {
-            return "Error: EMU credentials not found in configuration.";
-        }
-
         if (empty($params['pvz_code'])) {
-            return "Error: PVZ code is required.";
+            throw new InvalidArgumentException("PVZ code is required.");
         }
         if (empty($params['townfrom_code'])) {
-            return "Error: Sender town code is required.";
+            throw new InvalidArgumentException("Sender town code is required.");
         }
-        if (!isset($params['weight']) || $params['weight'] <= 0) {
-            return "Error: Valid weight is required.";
+        if (!isset($params['weight']) || (float)$params['weight'] <= 0) {
+            throw new InvalidArgumentException("Valid positive weight is required.");
         }
 
-        $xml   = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><calculator/>');
-        $auth  = $xml->addChild('auth');
-        $auth->addAttribute('login', self::$login);
-        $auth->addAttribute('pass',  self::$password);
-        $auth->addAttribute('extra', self::$extra);
+        $authParams = self::getAuthParams();
+
+        $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><calculator/>');
+        $auth = $xml->addChild('auth');
+        $auth->addAttribute('login', $authParams['login']);
+        $auth->addAttribute('pass', $authParams['pass']);
+        $auth->addAttribute('extra', (string)$authParams['extra']);
 
         $order = $xml->addChild('order');
         $order->addChild('pricetype', 'CUSTOMER');
 
-        $sender      = $order->addChild('sender');
-        $sender_town = $sender->addChild('town', htmlspecialchars($params['townfrom_name'] ?? ''));
-        $sender_town->addAttribute('code', $params['townfrom_code']);
+        $sender = $order->addChild('sender');
+        $senderTown = $sender->addChild('town', htmlspecialchars($params['townfrom_name'] ?? ''));
+        $senderTown->addAttribute('code', (string)$params['townfrom_code']);
 
         $receiver = $order->addChild('receiver');
         if (!empty($params['townto_code'])) {
-            $receiver_town = $receiver->addChild('town', htmlspecialchars($params['townto_name'] ?? ''));
-            $receiver_town->addAttribute('code', $params['townto_code']);
+            $receiverTown = $receiver->addChild('town', htmlspecialchars($params['townto_name'] ?? ''));
+            $receiverTown->addAttribute('code', (string)$params['townto_code']);
         }
-        $receiver->addChild('pvz', (int)$params['pvz_code']);
+        $receiver->addChild('pvz', (string)(int)$params['pvz_code']);
 
-        $order->addChild('service', 1);
+        $order->addChild('service', '1');
 
         $packages = $order->addChild('packages');
-        $package  = $packages->addChild('package');
-        $package->addAttribute('mass', (float)$params['weight']);
+        $package = $packages->addChild('package');
+        $package->addAttribute('mass', (string)(float)$params['weight']);
 
         $response = self::sendRequest($xml->asXML());
+        $responseXml = simplexml_load_string($response);
 
-        if (strpos($response, 'Error:') === 0 || strpos($response, 'Curl error') === 0) {
-            return $response;
+        if (!$responseXml) {
+            throw new EmuRequestException("Invalid XML response received from EMU API.");
         }
 
-        $response_xml = simplexml_load_string($response);
-        if (!$response_xml) return "Error: Invalid XML response.";
-
-        if (isset($response_xml->attributes()['error']) && (int)$response_xml->attributes()['error']) {
-            return "Error: " . ($response_xml->attributes()['errormsg'] ?? 'Unknown API error');
+        if (isset($responseXml->attributes()['error']) && (int)$responseXml->attributes()['error']) {
+            $errorMsg = (string)($responseXml->attributes()['errormsg'] ?? 'Unknown API error');
+            throw new EmuRequestException("EMU API Error: {$errorMsg}");
         }
 
-        foreach ($response_xml->calc as $calc) {
+        foreach ($responseXml->calc as $calc) {
             if ((string)$calc->service->attributes()['name'] === 'ДО ОФИСА') {
                 return (float)$calc->attributes()['price'];
             }
         }
 
-        return "Error: PVZ service 'ДО ОФИСА' not found in response.";
+        throw new EmuException("PVZ service 'ДО ОФИСА' not found in calculation response.");
     }
 
-    public static function createOrder(array $orderData)
+    /**
+     * @throws EmuException
+     * @throws EmuRequestException
+     * @throws InvalidArgumentException
+     */
+    public static function createOrder(array $orderData): array
     {
-        if (!self::loadCredentials()) {
-            return "Error: EMU credentials not found.";
+        if (empty($orderData['orderno'])) {
+            throw new InvalidArgumentException("Order number (orderno) is required.");
         }
+
+        $authParams = self::getAuthParams();
 
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><neworder></neworder>');
         $xml->addAttribute('newfolder', 'NO');
 
         $auth = $xml->addChild('auth');
-        $auth->addAttribute('login', self::$login);
-        $auth->addAttribute('pass', self::$password);
-        $auth->addAttribute('extra', self::$extra);
+        $auth->addAttribute('login', $authParams['login']);
+        $auth->addAttribute('pass', $authParams['pass']);
+        $auth->addAttribute('extra', (string)$authParams['extra']);
 
         $order = $xml->addChild('order');
-        $order->addAttribute('orderno', $orderData['orderno']);
+        $order->addAttribute('orderno', (string)$orderData['orderno']);
 
-        // Build Sender/Receiver (Standardizing logic)
         $sections = ['sender', 'receiver'];
         foreach ($sections as $key) {
             $node = $order->addChild($key);
@@ -225,42 +254,45 @@ class EmuClient
             $town = $node->addChild('town', htmlspecialchars($orderData[$key]['town'] ?? ''));
 
             if ($key === 'receiver') {
-                if (isset($orderData['receiver']['town_regioncode']))
+                if (isset($orderData['receiver']['town_regioncode'])) {
                     $town->addAttribute('regioncode', htmlspecialchars($orderData['receiver']['town_regioncode']));
-                if (isset($orderData['receiver']['country']))
+                }
+                if (isset($orderData['receiver']['country'])) {
                     $town->addAttribute('country', htmlspecialchars($orderData['receiver']['country']));
+                }
             }
 
             $node->addChild('company', htmlspecialchars($orderData[$key]['company'] ?? ''));
             $node->addChild('address', htmlspecialchars($orderData[$key]['address'] ?? ''));
-            if (isset($orderData[$key]['date'])) $node->addChild('date', htmlspecialchars($orderData[$key]['date']));
+            if (isset($orderData[$key]['date'])) {
+                $node->addChild('date', htmlspecialchars($orderData[$key]['date']));
+            }
         }
 
-        // Common Fields
         $fields = ['weight', 'quantity', 'paytype', 'service', 'price', 'enclosure', 'instruction'];
         foreach ($fields as $field) {
             $order->addChild($field, htmlspecialchars($orderData[$field] ?? ''));
         }
 
-        // Execute Request
         $response = self::sendRequest($xml->asXML(), 'application/xml');
-        if (strpos($response, 'Error:') === 0) return $response;
+        $xmlResponse = simplexml_load_string($response);
 
-        $xml_response = simplexml_load_string($response);
-        if ($xml_response === false) return "Error: Invalid XML response";
+        if ($xmlResponse === false) {
+            throw new EmuRequestException("Invalid XML response received from EMU API.");
+        }
 
-        if (isset($xml_response->createorder)) {
-            $co = $xml_response->createorder;
+        if (isset($xmlResponse->createorder)) {
+            $co = $xmlResponse->createorder;
             return [
                 'orderno'    => (string)$co['orderno'],
                 'barcode'    => (string)$co['barcode'],
                 'error'      => (int)$co['error'],
                 'errormsg'   => (string)$co['errormsg'],
                 'errormsgru' => (string)$co['errormsgru'],
-                'orderprice' => (float)$co['orderprice']
+                'orderprice' => (float)$co['orderprice'],
             ];
         }
 
-        return "Error: Unexpected response format.";
+        throw new EmuRequestException("Unexpected response format received from EMU API.");
     }
 }
