@@ -17,7 +17,7 @@ class EmuSync
     }
 
     /**
-     * Retrieves a list of towns in Uzbekistan.
+     * Retrieves a list of towns for the configured country.
      *
      * @throws EmuException
      * @throws EmuRequestException
@@ -33,7 +33,7 @@ class EmuSync
         $auth->addAttribute('pass',  $authData['pass']);
 
         $conditions = $xml->addChild('conditions');
-        $conditions->addChild('country', '1219');
+        $conditions->addChild('country', (string)EmuClient::getCountryCode());
 
         $limit = $xml->addChild('limit');
         $limit->addChild('countall', 'YES');

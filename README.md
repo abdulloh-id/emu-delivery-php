@@ -1,6 +1,6 @@
 # EMU Delivery PHP SDK
 
-A framework-agnostic PHP SDK for integrating with the EMU Express Delivery API in Uzbekistan.
+A framework-agnostic PHP SDK for integrating with the EMU Express Delivery API, with support for multiple destination countries.
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-8892BF.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -66,6 +66,12 @@ Or pass database flags directly:
 ```bash
 php examples/run_emu_sync.php --host=127.0.0.1 --dbname=my_db --user=root --pass=secret
 ```
+
+## Constraints
+
+- `EmuClient::configure()` stores credentials and the country code as **static, process-wide state**. It is intended for **single-tenant, single-country** usage: call it once at application boot and do not reconfigure it with different values mid-request.
+- Do **not** call `configure()` with different credentials or country codes across tenants or requests within the same long-running PHP process (e.g. Swoole, RoadRunner, persistent queue workers). Doing so will overwrite the active configuration for any other code running in that process.
+- Multi-country support (`Country` constants + `countryCode` param) covers syncing town/region data and setting a receiver's country on `createOrder()` — it does not add cross-border pricing logic to `calculateCost()`/`calculateCostPvz()`, since sender and receiver are assumed to be in the same configured country.
 
 ## Custom Storage Adapters
 

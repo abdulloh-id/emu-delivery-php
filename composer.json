@@ -1,6 +1,6 @@
 {
     "name": "abdulloh-id/emu-delivery-php",
-    "description": "PHP SDK for integrating EMU Express delivery services, PVZ pickup points, and town synchronization in Uzbekistan",
+    "description": "PHP SDK for integrating EMU Express delivery services, PVZ pickup points, and multi-country town synchronization",
     "type": "library",
     "license": "MIT",
     "autoload": {

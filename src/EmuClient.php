@@ -14,19 +14,34 @@ class EmuClient
     private static ?string $login = null;
     private static ?string $password = null;
     private static ?int $extra = null;
+    private static int $countryCode = Country::UZBEKISTAN;
 
     /**
-     * Dynamically configure EMU credentials.
+     * Dynamically configure EMU credentials and regional settings.
      */
-    public static function configure(string $login, string $password, int $extra, ?string $apiUrl = null): void
-    {
+    public static function configure(
+        string $login,
+        string $password,
+        int $extra,
+        int $countryCode = Country::UZBEKISTAN,
+        ?string $apiUrl = null
+    ): void {
         self::$login = $login;
         self::$password = $password;
         self::$extra = $extra;
+        self::$countryCode = $countryCode;
 
         if ($apiUrl !== null) {
             self::$api_url = $apiUrl;
         }
+    }
+
+    /**
+     * Gets the configured country code (defaults to Uzbekistan / 1219).
+     */
+    public static function getCountryCode(): int
+    {
+        return self::$countryCode;
     }
 
     /**
@@ -257,9 +272,8 @@ class EmuClient
                 if (isset($orderData['receiver']['town_regioncode'])) {
                     $town->addAttribute('regioncode', htmlspecialchars($orderData['receiver']['town_regioncode']));
                 }
-                if (isset($orderData['receiver']['country'])) {
-                    $town->addAttribute('country', htmlspecialchars($orderData['receiver']['country']));
-                }
+                $countryCode = $orderData['receiver']['country'] ?? self::getCountryCode();
+                $town->addAttribute('country', (string)$countryCode);
             }
 
             $node->addChild('company', htmlspecialchars($orderData[$key]['company'] ?? ''));
