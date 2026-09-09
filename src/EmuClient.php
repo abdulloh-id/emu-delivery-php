@@ -157,12 +157,16 @@ class EmuClient
             throw new EmuRequestException("EMU API Error: {$errorMsg}");
         }
 
-        $showPrice = $deliveryParams['show_price'] ?? 'to_home';
-        $targetService = ($showPrice === 'to_office') ? 'ДО ОФИСА' : 'НА ДОМ';
+        $targetService = $deliveryParams['service_name'] ?? match ($deliveryParams['show_price'] ?? null) {
+            'to_office' => Service::TO_OFFICE,
+            default     => Service::TO_HOME,
+        };
 
         foreach ($responseXml->calc as $calc) {
-            if ((string)$calc->service->attributes()['name'] === $targetService) {
-                return (float)$calc->attributes()['price'];
+            $serviceName = (string) $calc->service->attributes()['name'];
+
+            if (strcasecmp(trim($serviceName), trim($targetService)) === 0) {
+                return (float) $calc->attributes()['price'];
             }
         }
 
@@ -229,12 +233,14 @@ class EmuClient
         }
 
         foreach ($responseXml->calc as $calc) {
-            if ((string)$calc->service->attributes()['name'] === 'ДО ОФИСА') {
-                return (float)$calc->attributes()['price'];
+            $serviceName = (string) $calc->service->attributes()['name'];
+
+            if (strcasecmp(trim($serviceName), trim(Service::TO_OFFICE)) === 0) {
+                return (float) $calc->attributes()['price'];
             }
         }
 
-        throw new EmuException("PVZ service 'ДО ОФИСА' not found in calculation response.");
+        throw new EmuException("PVZ service '" . Service::TO_OFFICE . "' not found in calculation response.");
     }
 
     /**
