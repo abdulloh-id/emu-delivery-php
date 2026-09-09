@@ -1,8 +1,8 @@
 <?php
 
-namespace AbdullohId\EmuDelivery\Contracts;
+namespace AbdullohId\MeasoftDelivery\Contracts;
 
-interface EmuStorageInterface
+interface MeasoftStorageInterface
 {
     /**
      * Store or replace regions.

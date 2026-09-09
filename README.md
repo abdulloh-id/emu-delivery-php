@@ -1,6 +1,8 @@
-# EMU Delivery PHP SDK
+# MeaSoft Delivery PHP SDK
 
-A framework-agnostic PHP SDK for integrating with the EMU Express Delivery API, with support for multiple destination countries.
+MeaSoft Delivery PHP SDK is a lightweight, framework-agnostic client for the MeaSoft (CourierExe) logistics API.
+
+While built to support any courier service running on the MeaSoft platform across 8+ countries, it includes out-of-the-box defaults for regional providers like EMU Express in Uzbekistan.
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-8892BF.svg)](https://php.net)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,7 +15,7 @@ A framework-agnostic PHP SDK for integrating with the EMU Express Delivery API, 
 ## Installation
 
 ```bash
-composer require abdulloh-id/emu-delivery-php
+composer require abdulloh-id/measoft-delivery-php
 ```
 
 Import `database/schema.sql` into your MySQL/MariaDB database if using the default PDO repository.
@@ -23,9 +25,9 @@ Import `database/schema.sql` into your MySQL/MariaDB database if using the defau
 Configure credentials once at application boot:
 
 ```php
-use AbdullohId\EmuDelivery\EmuClient;
+use AbdullohId\MeasoftDelivery\MeasoftClient;
 
-EmuClient::configure(
+MeasoftClient::configure(
     login: 'your_login',
     password: 'your_password',
     extra: 123
@@ -37,19 +39,19 @@ EmuClient::configure(
 ### Fetching & Syncing Data
 
 ```php
-use AbdullohId\EmuDelivery\EmuSync;
-use AbdullohId\EmuDelivery\Repositories\PdoEmuRepository;
+use AbdullohId\MeasoftDelivery\MeasoftSync;
+use AbdullohId\MeasoftDelivery\Repositories\PdoMeasoftRepository;
 
 $pdo = new PDO('mysql:host=127.0.0.1;dbname=your_db;charset=utf8mb4', 'root', '');
-$sync = new EmuSync(new PdoEmuRepository($pdo));
+$sync = new MeasoftSync(new PdoMeasoftRepository($pdo));
 
 // Sync regions & towns
-$towns = EmuSync::getTownList();
+$towns = MeasoftSync::getTownList();
 $sync->updateRegionList($towns);
 $sync->updateTownList($towns);
 
 // Sync pickup points (PVZ)
-$pvzList = EmuSync::getPvzList();
+$pvzList = MeasoftSync::getPvzList();
 $sync->updatePvzList($pvzList);
 ```
 
@@ -58,24 +60,24 @@ $sync->updatePvzList($pvzList);
 Copy `.env.example` to `.env` in your root folder, then execute:
 
 ```bash
-php examples/run_emu_sync.php
+php examples/run_measoft_sync.php
 ```
 
 Or pass database flags directly:
 
 ```bash
-php examples/run_emu_sync.php --host=127.0.0.1 --dbname=my_db --user=root --pass=secret
+php examples/run_measoft_sync.php --host=127.0.0.1 --dbname=my_db --user=root --pass=secret
 ```
 
 ## Constraints
 
-- `EmuClient::configure()` stores credentials and the country code as **static, process-wide state**. It is intended for **single-tenant, single-country** usage: call it once at application boot and do not reconfigure it with different values mid-request.
+- `MeasoftClient::configure()` stores credentials and the country code as **static, process-wide state**. It is intended for **single-tenant, single-country** usage: call it once at application boot and do not reconfigure it with different values mid-request.
 - Do **not** call `configure()` with different credentials or country codes across tenants or requests within the same long-running PHP process (e.g. Swoole, RoadRunner, persistent queue workers). Doing so will overwrite the active configuration for any other code running in that process.
 - Multi-country support (`Country` constants + `countryCode` param) covers syncing town/region data and setting a receiver's country on `createOrder()` — it does not add cross-border pricing logic to `calculateCost()`/`calculateCostPvz()`, since sender and receiver are assumed to be in the same configured country.
 
 ## Custom Storage Adapters
 
-Implement `AbdullohId\EmuDelivery\Contracts\EmuStorageInterface` to build custom ORM persistence layers (e.g., Laravel Eloquent, Doctrine).
+Implement `AbdullohId\MeasoftDelivery\Contracts\MeasoftStorageInterface` to build custom ORM persistence layers (e.g., Laravel Eloquent, Doctrine).
 
 ## License
 

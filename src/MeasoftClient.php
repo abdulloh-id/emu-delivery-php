@@ -1,13 +1,13 @@
 <?php
 
-namespace AbdullohId\EmuDelivery;
+namespace AbdullohId\MeasoftDelivery;
 
-use AbdullohId\EmuDelivery\Exceptions\EmuException;
-use AbdullohId\EmuDelivery\Exceptions\EmuRequestException;
+use AbdullohId\MeasoftDelivery\Exceptions\MeasoftException;
+use AbdullohId\MeasoftDelivery\Exceptions\MeasoftRequestException;
 use InvalidArgumentException;
 use SimpleXMLElement;
 
-class EmuClient
+class MeasoftClient
 {
     private static string $api_url = "https://home.courierexe.ru/api/";
 
@@ -17,7 +17,7 @@ class EmuClient
     private static int $countryCode = Country::UZBEKISTAN;
 
     /**
-     * Dynamically configure EMU credentials and regional settings.
+     * Dynamically configure MEASOFT credentials and regional settings.
      */
     public static function configure(
         string $login,
@@ -53,12 +53,12 @@ class EmuClient
     }
 
     /**
-     * @throws EmuException
+     * @throws MeasoftException
      */
     public static function getAuthParams(): array
     {
         if (!self::loadCredentials()) {
-            throw new EmuException("EMU credentials are not configured. Call EmuClient::configure() or ensure config.php exists.");
+            throw new MeasoftException("MEASOFT credentials are not configured. Call MeasoftClient::configure() or ensure config.php exists.");
         }
 
         return [
@@ -71,12 +71,12 @@ class EmuClient
     /**
      * Common cURL communication helper with SSL and timeout hardening.
      *
-     * @throws EmuRequestException
+     * @throws MeasoftRequestException
      */
     public static function sendRequest(string $xmlString, string $contentType = 'application/xml'): string
     {
         if (!self::loadCredentials()) {
-            throw new EmuRequestException("EMU API credentials are not configured.");
+            throw new MeasoftRequestException("MEASOFT API credentials are not configured.");
         }
 
         $ch = curl_init();
@@ -97,22 +97,22 @@ class EmuClient
         if (curl_errno($ch)) {
             $error = curl_error($ch);
             curl_close($ch);
-            throw new EmuRequestException("cURL connection error: {$error}");
+            throw new MeasoftRequestException("cURL connection error: {$error}");
         }
 
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
-            throw new EmuRequestException("EMU API request failed with HTTP status code {$httpCode}.");
+            throw new MeasoftRequestException("MEASOFT API request failed with HTTP status code {$httpCode}.");
         }
 
         return (string)$response;
     }
 
     /**
-     * @throws EmuException
-     * @throws EmuRequestException
+     * @throws MeasoftException
+     * @throws MeasoftRequestException
      * @throws InvalidArgumentException
      */
     public static function calculateCost(array $deliveryParams): float
@@ -149,12 +149,12 @@ class EmuClient
         $responseXml = simplexml_load_string($response);
 
         if (!$responseXml) {
-            throw new EmuRequestException("Invalid XML response received from EMU API.");
+            throw new MeasoftRequestException("Invalid XML response received from MEASOFT API.");
         }
 
         if (isset($responseXml->attributes()['error']) && (int)$responseXml->attributes()['error']) {
             $errorMsg = (string)($responseXml->attributes()['errormsg'] ?? 'Unknown API error');
-            throw new EmuRequestException("EMU API Error: {$errorMsg}");
+            throw new MeasoftRequestException("MEASOFT API Error: {$errorMsg}");
         }
 
         $targetService = $deliveryParams['service_name'] ?? match ($deliveryParams['show_price'] ?? null) {
@@ -170,14 +170,14 @@ class EmuClient
             }
         }
 
-        throw new EmuException("Service '$targetService' not found in calculation response.");
+        throw new MeasoftException("Service '$targetService' not found in calculation response.");
     }
 
     /**
-     * Calculates delivery fee from seller's address to an EMU PVZ.
+     * Calculates delivery fee from seller's address to an MEASOFT PVZ.
      *
-     * @throws EmuException
-     * @throws EmuRequestException
+     * @throws MeasoftException
+     * @throws MeasoftRequestException
      * @throws InvalidArgumentException
      */
     public static function calculateCostPvz(array $params): float
@@ -224,12 +224,12 @@ class EmuClient
         $responseXml = simplexml_load_string($response);
 
         if (!$responseXml) {
-            throw new EmuRequestException("Invalid XML response received from EMU API.");
+            throw new MeasoftRequestException("Invalid XML response received from MEASOFT API.");
         }
 
         if (isset($responseXml->attributes()['error']) && (int)$responseXml->attributes()['error']) {
             $errorMsg = (string)($responseXml->attributes()['errormsg'] ?? 'Unknown API error');
-            throw new EmuRequestException("EMU API Error: {$errorMsg}");
+            throw new MeasoftRequestException("MEASOFT API Error: {$errorMsg}");
         }
 
         foreach ($responseXml->calc as $calc) {
@@ -240,12 +240,12 @@ class EmuClient
             }
         }
 
-        throw new EmuException("PVZ service '" . Service::TO_OFFICE . "' not found in calculation response.");
+        throw new MeasoftException("PVZ service '" . Service::TO_OFFICE . "' not found in calculation response.");
     }
 
     /**
-     * @throws EmuException
-     * @throws EmuRequestException
+     * @throws MeasoftException
+     * @throws MeasoftRequestException
      * @throws InvalidArgumentException
      */
     public static function createOrder(array $orderData): array
@@ -298,7 +298,7 @@ class EmuClient
         $xmlResponse = simplexml_load_string($response);
 
         if ($xmlResponse === false) {
-            throw new EmuRequestException("Invalid XML response received from EMU API.");
+            throw new MeasoftRequestException("Invalid XML response received from MEASOFT API.");
         }
 
         if (isset($xmlResponse->createorder)) {
@@ -313,6 +313,6 @@ class EmuClient
             ];
         }
 
-        throw new EmuRequestException("Unexpected response format received from EMU API.");
+        throw new MeasoftRequestException("Unexpected response format received from MEASOFT API.");
     }
 }

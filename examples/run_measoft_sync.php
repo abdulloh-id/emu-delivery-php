@@ -2,10 +2,10 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use AbdullohId\EmuDelivery\EmuClient;
-use AbdullohId\EmuDelivery\EmuSync;
-use AbdullohId\EmuDelivery\Repositories\PdoEmuRepository;
-use AbdullohId\EmuDelivery\Exceptions\EmuException;
+use AbdullohId\MeasoftDelivery\MeasoftClient;
+use AbdullohId\MeasoftDelivery\MeasoftSync;
+use AbdullohId\MeasoftDelivery\Repositories\PdoMeasoftRepository;
+use AbdullohId\MeasoftDelivery\Exceptions\MeasoftException;
 
 // Lightweight .env reader for local CLI runs
 $envFile = __DIR__ . '/../.env';
@@ -39,9 +39,9 @@ $options = getopt('', [
     'dbname::',
     'user::',
     'pass::',
-    'emu-login::',
-    'emu-pass::',
-    'emu-extra::',
+    'measoft-login::',
+    'measoft-pass::',
+    'measoft-extra::',
 ]);
 
 // 1. Resolve DB Credentials
@@ -54,18 +54,18 @@ $dbPass = $getConf('DB_PASSWORD', $options['pass'] ?? '') ?? '';
 if (!$dbHost || !$dbName || !$dbUser) {
     echo "Error: Missing database credentials.\n\n";
     echo "Usage:\n";
-    echo "  php examples/run_emu_sync.php --host=127.0.0.1 --dbname=my_db --user=root --pass=secret\n";
+    echo "  php examples/run_measoft_sync.php --host=127.0.0.1 --dbname=my_db --user=root --pass=secret\n";
     echo "Or copy .env.example to .env and define your database settings.\n";
     exit(1);
 }
 
-// 2. Resolve EMU Credentials
-$emuLogin = $getConf('EMU_LOGIN', $options['emu-login'] ?? null);
-$emuPass  = $getConf('EMU_PASS', $options['emu-pass'] ?? null);
-$emuExtra = $getConf('EMU_EXTRA', $options['emu-extra'] ?? null);
+// 2. Resolve MEASOFT Credentials
+$measoftLogin = $getConf('MEASOFT_LOGIN', $options['measoft-login'] ?? null);
+$measoftPass  = $getConf('MEASOFT_PASS', $options['measoft-pass'] ?? null);
+$measoftExtra = $getConf('MEASOFT_EXTRA', $options['measoft-extra'] ?? null);
 
-if ($emuLogin && $emuPass && $emuExtra) {
-    EmuClient::configure($emuLogin, $emuPass, (int)$emuExtra);
+if ($measoftLogin && $measoftPass && $measoftExtra) {
+    MeasoftClient::configure($measoftLogin, $measoftPass, (int)$measoftExtra);
 }
 
 try {
@@ -75,21 +75,21 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
-    $repository = new PdoEmuRepository($pdo);
-    $sync = new EmuSync($repository);
+    $repository = new PdoMeasoftRepository($pdo);
+    $sync = new MeasoftSync($repository);
 
     echo "Fetching town list...\n";
-    $towns = EmuSync::getTownList();
+    $towns = MeasoftSync::getTownList();
     $sync->updateRegionList($towns);
     $sync->updateTownList($towns);
     echo "Towns and regions updated successfully!\n";
 
     echo "Fetching PVZ list...\n";
-    $pvzList = EmuSync::getPvzList();
+    $pvzList = MeasoftSync::getPvzList();
     $sync->updatePvzList($pvzList);
     echo "PVZ list updated successfully!\n";
 
-} catch (EmuException $e) {
+} catch (MeasoftException $e) {
     echo "SDK Error: " . $e->getMessage() . "\n";
     exit(1);
 } catch (PDOException $e) {

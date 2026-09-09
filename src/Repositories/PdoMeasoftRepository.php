@@ -1,12 +1,12 @@
 <?php
 
-namespace AbdullohId\EmuDelivery\Repositories;
+namespace AbdullohId\MeasoftDelivery\Repositories;
 
-use AbdullohId\EmuDelivery\Contracts\EmuStorageInterface;
+use AbdullohId\MeasoftDelivery\Contracts\MeasoftStorageInterface;
 use Exception;
 use PDO;
 
-class PdoEmuRepository implements EmuStorageInterface
+class PdoMeasoftRepository implements MeasoftStorageInterface
 {
     private PDO $pdo;
 

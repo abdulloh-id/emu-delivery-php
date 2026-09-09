@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use AbdullohId\EmuDelivery\EmuClient;
+use AbdullohId\MeasoftDelivery\MeasoftClient;
 
 $params = [
     'townfrom_code' => 272765, // Zangiata (Tashkent Region)
@@ -11,7 +11,7 @@ $params = [
     'weight'        => 0.55,   // Crossed the 0.5kg limit
 ];
 
-$result = EmuClient::calculateCostPvz($params);
+$result = MeasoftClient::calculateCostPvz($params);
 
 if (is_numeric($result)) {
     echo "Calculated Shipping Cost: {$result} UZS\n";

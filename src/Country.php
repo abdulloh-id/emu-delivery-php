@@ -1,6 +1,6 @@
 <?php
 
-namespace AbdullohId\EmuDelivery;
+namespace AbdullohId\MeasoftDelivery;
 
 class Country
 {

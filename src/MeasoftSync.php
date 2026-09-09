@@ -1,17 +1,17 @@
 <?php
 
-namespace AbdullohId\EmuDelivery;
+namespace AbdullohId\MeasoftDelivery;
 
-use AbdullohId\EmuDelivery\Contracts\EmuStorageInterface;
-use AbdullohId\EmuDelivery\Exceptions\EmuException;
-use AbdullohId\EmuDelivery\Exceptions\EmuRequestException;
+use AbdullohId\MeasoftDelivery\Contracts\MeasoftStorageInterface;
+use AbdullohId\MeasoftDelivery\Exceptions\MeasoftException;
+use AbdullohId\MeasoftDelivery\Exceptions\MeasoftRequestException;
 use SimpleXMLElement;
 
-class EmuSync
+class MeasoftSync
 {
-    private ?EmuStorageInterface $storage;
+    private ?MeasoftStorageInterface $storage;
 
-    public function __construct(?EmuStorageInterface $storage = null)
+    public function __construct(?MeasoftStorageInterface $storage = null)
     {
         $this->storage = $storage;
     }
@@ -19,12 +19,12 @@ class EmuSync
     /**
      * Retrieves a list of towns for the configured country.
      *
-     * @throws EmuException
-     * @throws EmuRequestException
+     * @throws MeasoftException
+     * @throws MeasoftRequestException
      */
     public static function getTownList(): array
     {
-        $authData = EmuClient::getAuthParams();
+        $authData = MeasoftClient::getAuthParams();
 
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><townlist/>');
         $auth = $xml->addChild('auth');
@@ -33,16 +33,16 @@ class EmuSync
         $auth->addAttribute('pass',  $authData['pass']);
 
         $conditions = $xml->addChild('conditions');
-        $conditions->addChild('country', (string)EmuClient::getCountryCode());
+        $conditions->addChild('country', (string)MeasoftClient::getCountryCode());
 
         $limit = $xml->addChild('limit');
         $limit->addChild('countall', 'YES');
 
-        $response = EmuClient::sendRequest($xml->asXML());
+        $response = MeasoftClient::sendRequest($xml->asXML());
         $res = simplexml_load_string($response);
 
         if (!$res) {
-            throw new EmuRequestException("Invalid XML response received from EMU town list endpoint.");
+            throw new MeasoftRequestException("Invalid XML response received from EMU town list endpoint.");
         }
 
         $townList = [];
@@ -65,12 +65,12 @@ class EmuSync
     /**
      * Retrieves PVZ list from EMU database.
      *
-     * @throws EmuException
-     * @throws EmuRequestException
+     * @throws MeasoftException
+     * @throws MeasoftRequestException
      */
     public static function getPvzList(?string $clientCode = null): array
     {
-        $authData = EmuClient::getAuthParams();
+        $authData = MeasoftClient::getAuthParams();
 
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><pvzlist/>');
         $auth = $xml->addChild('auth');
@@ -82,11 +82,11 @@ class EmuSync
             $xml->addChild('client_code', $clientCode);
         }
 
-        $response = EmuClient::sendRequest($xml->asXML());
+        $response = MeasoftClient::sendRequest($xml->asXML());
         $res = simplexml_load_string($response);
 
         if (!$res) {
-            throw new EmuRequestException("Invalid XML response received from EMU PVZ list endpoint.");
+            throw new MeasoftRequestException("Invalid XML response received from EMU PVZ list endpoint.");
         }
 
         $pvzList = [];
@@ -125,7 +125,7 @@ class EmuSync
     /**
      * Updates regions in storage.
      *
-     * @throws EmuException
+     * @throws MeasoftException
      */
     public function updateRegionList(array $townList): bool
     {
@@ -144,7 +144,7 @@ class EmuSync
     /**
      * Updates towns in storage.
      *
-     * @throws EmuException
+     * @throws MeasoftException
      */
     public function updateTownList(array $townList): bool
     {
@@ -155,7 +155,7 @@ class EmuSync
     /**
      * Updates PVZ list in storage.
      *
-     * @throws EmuException
+     * @throws MeasoftException
      */
     public function updatePvzList(array $pvzList): bool
     {
@@ -164,12 +164,12 @@ class EmuSync
     }
 
     /**
-     * @throws EmuException
+     * @throws MeasoftException
      */
     private function ensureStorageConfigured(): void
     {
         if ($this->storage === null) {
-            throw new EmuException("No storage repository provided. Pass an EmuStorageInterface implementation to EmuSync.");
+            throw new MeasoftException("No storage repository provided. Pass an MeasoftStorageInterface implementation to MeasoftSync.");
         }
     }
 }

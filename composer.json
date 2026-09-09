@@ -1,11 +1,19 @@
 {
-    "name": "abdulloh-id/emu-delivery-php",
-    "description": "PHP SDK for integrating EMU Express delivery services, PVZ pickup points, and multi-country town synchronization",
+    "name": "abdulloh-id/measoft-delivery-php",
+    "description": "Modern, lightweight PHP SDK for the MeaSoft courier delivery platform API, with multi-country support.",
+    "keywords": [
+        "measoft",
+        "courierexe",
+        "delivery-sdk",
+        "logistics",
+        "emu-express",
+        "php-sdk"
+    ],
     "type": "library",
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "AbdullohId\\EmuDelivery\\": "src/"
+            "AbdullohId\\MeasoftDelivery\\": "src/"
         }
     },
     "authors": [
