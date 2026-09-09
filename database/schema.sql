@@ -1,9 +1,9 @@
-CREATE TABLE IF NOT EXISTS `emu_region_list` (
+CREATE TABLE IF NOT EXISTS `measoft_region_list` (
     `id` INT UNSIGNED NOT NULL PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `emu_town_list` (
+CREATE TABLE IF NOT EXISTS `measoft_town_list` (
     `id` INT UNSIGNED NOT NULL PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL,
     `region_code` INT UNSIGNED NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `emu_town_list` (
     INDEX `idx_region_code` (`region_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `emu_pvz_list` (
+CREATE TABLE IF NOT EXISTS `measoft_pvz_list` (
     `id` INT UNSIGNED NOT NULL PRIMARY KEY,
     `client_code` VARCHAR(100) DEFAULT NULL,
     `name` VARCHAR(255) NOT NULL,

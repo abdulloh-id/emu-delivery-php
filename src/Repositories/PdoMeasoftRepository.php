@@ -24,10 +24,10 @@ class PdoMeasoftRepository implements MeasoftStorageInterface
         try {
             $this->pdo->beginTransaction();
 
-            $this->pdo->exec("DELETE FROM `emu_region_list`");
+            $this->pdo->exec("DELETE FROM `measoft_region_list`");
 
             $stmt = $this->pdo->prepare("
-                INSERT INTO `emu_region_list` (`id`, `name`)
+                INSERT INTO `measoft_region_list` (`id`, `name`)
                 VALUES (:id, :name)
             ");
 
@@ -57,10 +57,10 @@ class PdoMeasoftRepository implements MeasoftStorageInterface
         try {
             $this->pdo->beginTransaction();
 
-            $this->pdo->exec("DELETE FROM `emu_town_list`");
+            $this->pdo->exec("DELETE FROM `measoft_town_list`");
 
             $stmt = $this->pdo->prepare("
-                INSERT INTO `emu_town_list` (
+                INSERT INTO `measoft_town_list` (
                     `id`, `name`, `region_code`, `region_name`, `latitude`, `longitude`
                 ) VALUES (
                     :id, :name, :region_code, :region_name, :latitude, :longitude
@@ -95,15 +95,15 @@ class PdoMeasoftRepository implements MeasoftStorageInterface
         }
 
         try {
-            $stmtRegions = $this->pdo->query("SELECT `id` FROM `emu_region_list`");
+            $stmtRegions = $this->pdo->query("SELECT `id` FROM `measoft_region_list`");
             $uzRegions = $stmtRegions ? $stmtRegions->fetchAll(PDO::FETCH_COLUMN) : [];
 
             $this->pdo->beginTransaction();
 
-            $this->pdo->exec("DELETE FROM `emu_pvz_list`");
+            $this->pdo->exec("DELETE FROM `measoft_pvz_list`");
 
             $stmt = $this->pdo->prepare("
-            INSERT INTO `emu_pvz_list` (
+            INSERT INTO `measoft_pvz_list` (
                 `id`, `client_code`, `name`, `parent_code`, `parent_name`,
                 `town`, `town_code`, `town_region_code`, `town_region_name`,
                 `address`, `phone`, `comment`, `work_time`, `travel_description`,

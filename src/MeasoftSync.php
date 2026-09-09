@@ -42,7 +42,7 @@ class MeasoftSync
         $res = simplexml_load_string($response);
 
         if (!$res) {
-            throw new MeasoftRequestException("Invalid XML response received from EMU town list endpoint.");
+            throw new MeasoftRequestException("Invalid XML response received from MEASOFT town list endpoint.");
         }
 
         $townList = [];
@@ -63,7 +63,7 @@ class MeasoftSync
     }
 
     /**
-     * Retrieves PVZ list from EMU database.
+     * Retrieves PVZ list from MEASOFT database.
      *
      * @throws MeasoftException
      * @throws MeasoftRequestException
@@ -86,7 +86,7 @@ class MeasoftSync
         $res = simplexml_load_string($response);
 
         if (!$res) {
-            throw new MeasoftRequestException("Invalid XML response received from EMU PVZ list endpoint.");
+            throw new MeasoftRequestException("Invalid XML response received from MEASOFT PVZ list endpoint.");
         }
 
         $pvzList = [];
